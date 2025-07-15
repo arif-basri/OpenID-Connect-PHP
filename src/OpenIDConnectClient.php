@@ -28,6 +28,7 @@ use Exception;
 use phpseclib3\Crypt\RSA;
 use phpseclib3\Math\BigInteger;
 use stdClass;
+use Symfony\Component\HttpFoundation\Response;
 use function bin2hex;
 use function is_object;
 use function random_bytes;
@@ -296,7 +297,7 @@ class OpenIDConnectClient
      * @return bool
      * @throws OpenIDConnectClientException
      */
-    public function authenticate(): bool
+    public function authenticate(string $requestMethod = 'GET'): bool
     {
         // Do a preemptive check to see if the provider has thrown an error from a previous redirect
         if (isset($_REQUEST['error'])) {
@@ -416,7 +417,7 @@ class OpenIDConnectClient
             throw new OpenIDConnectClientException ('Unable to verify JWT claims');
         }
 
-        $this->requestAuthorization();
+        $this->requestAuthorization($requestMethod);
         return false;
     }
 
@@ -742,7 +743,7 @@ class OpenIDConnectClient
      * @throws OpenIDConnectClientException
      * @throws Exception
      */
-    private function requestAuthorization() {
+    private function requestAuthorization($requestMethod) {
 
         $auth_endpoint = $this->getProviderConfigValue('authorization_endpoint');
         $response_type = 'code';
@@ -789,10 +790,29 @@ class OpenIDConnectClient
             ]);
         }
 
-        $auth_endpoint .= (strpos($auth_endpoint, '?') === false ? '?' : '&') . http_build_query($auth_params, '', '&', $this->encType);
+
 
         $this->commitSession();
-        $this->redirect($auth_endpoint);
+        if ($requestMethod === 'GET') {
+            $auth_endpoint .= (strpos($auth_endpoint, '?') === false ? '?' : '&') . http_build_query($auth_params, '', '&', $this->encType);
+
+            $this->redirect($auth_endpoint);
+        } else
+        {
+            $html = '<html><body onload="document.forms[0].submit()">';
+            $html .= '<form method="post" action="' . htmlspecialchars($auth_endpoint) . '">';
+            foreach ($auth_params as $key => $value) {
+                $html .= '<input type="hidden" name="' . htmlspecialchars($key) . '" value="' . htmlspecialchars($value) . '" />';
+            }
+            // add a submit button for browsers that do not support auto-submit
+            $html .= '<input type="submit" value="One moment please..." />';
+            $html .= '</form></body></html>';
+
+            $res = new Response();
+            $res->setContent($html);
+            $res->headers->set('Content-Type', 'text/html');
+            $res->send();
+        }
     }
 
     /**
