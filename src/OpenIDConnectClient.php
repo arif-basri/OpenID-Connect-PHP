@@ -255,6 +255,12 @@ class OpenIDConnectClient
     private $token_endpoint_auth_methods_supported = ['client_secret_basic'];
 
     /**
+     * @var string method to call the authorize endpoint
+     * This is usually GET, but can be POST for some providers.
+     * */
+    private $authorize_method = 'GET';
+
+    /**
      * @param string|null $provider_url optional
      * @param string|null $client_id optional
      * @param string|null $client_secret optional
@@ -297,7 +303,7 @@ class OpenIDConnectClient
      * @return bool
      * @throws OpenIDConnectClientException
      */
-    public function authenticate(string $requestMethod = 'GET'): bool
+    public function authenticate(): bool
     {
         // Do a preemptive check to see if the provider has thrown an error from a previous redirect
         if (isset($_REQUEST['error'])) {
@@ -417,7 +423,7 @@ class OpenIDConnectClient
             throw new OpenIDConnectClientException ('Unable to verify JWT claims');
         }
 
-        $this->requestAuthorization($requestMethod);
+        $this->requestAuthorization();
         return false;
     }
 
@@ -743,7 +749,7 @@ class OpenIDConnectClient
      * @throws OpenIDConnectClientException
      * @throws Exception
      */
-    private function requestAuthorization($requestMethod) {
+    private function requestAuthorization() {
 
         $auth_endpoint = $this->getProviderConfigValue('authorization_endpoint');
         $response_type = 'code';
@@ -793,7 +799,7 @@ class OpenIDConnectClient
 
 
         $this->commitSession();
-        if ($requestMethod === 'GET') {
+        if ($this->authorize_method === 'GET') {
             $auth_endpoint .= (strpos($auth_endpoint, '?') === false ? '?' : '&') . http_build_query($auth_params, '', '&', $this->encType);
 
             $this->redirect($auth_endpoint);
@@ -2112,5 +2118,21 @@ class OpenIDConnectClient
     protected function getUserAgent(): string
     {
         return "jumbojett/OpenID-Connect-PHP";
+    }
+
+    // create the setter and getter
+    /**
+     * @return string
+     */
+    public function getAuthorizeMethod(): string
+    {
+        return $this->authorize_method;
+    }
+    /**
+     * @param string $authorize_method
+     */
+    public function setAuthorizeMethod(string $authorize_method): void
+    {
+        $this->authorize_method = $authorize_method;
     }
 }
