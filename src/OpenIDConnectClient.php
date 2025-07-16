@@ -756,10 +756,20 @@ class OpenIDConnectClient
 
         // Generate and store a nonce in the session
         // The nonce is an arbitrary value
-        $nonce = $this->setNonce($this->generateRandString());
+        if (isset($this->authParams['nonce']) && !empty($this->authParams['nonce'])) {
+            $nonce = $this->authParams['nonce'];
+            $this->setNonce($nonce);
+        } else {
+            $nonce = $this->setNonce($this->generateRandString());
+        }
 
         // State essentially acts as a session key for OIDC
-        $state = $this->setState($this->generateRandString());
+        if (isset($this->authParams['state']) && !empty($this->authParams['state'])) {
+            $state = $this->authParams['state'];
+            $this->setState($state);
+        } else {
+            $state = $this->setState($this->generateRandString());
+        }
 
         $auth_params = array_merge($this->authParams, [
             'response_type' => $response_type,
